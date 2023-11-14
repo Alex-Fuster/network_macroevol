@@ -17,19 +17,19 @@ rand_traits_mut = function(traits_anc, pars) {
   
   with(as.list(c(traits_anc, pars)),{
     
-    if(interaction == 0) {
+    if(int == 0) {
       a = beta_n*n/(1-n)
       n_m = rbeta(1, shape1 = a, shape2 = beta_n)
       traits_mut = c(n = n_m, r = r, o = n)
     }
     
-    if(interaction == 1) {
+    if(int == 1) {
       a = beta_n*n/(1-n)
       n_m = rbeta(1, shape1 = a, shape2 = beta_n)
       traits_mut = c(n = n_m, r = r, o = n)
     }
     
-    if(interaction == 2) {
+    if(int == 2) {
       a = beta_n*n/(1-n)
       n_m = rbeta(1, shape1 = a, shape2 = beta_n)
       #			o_m = runif(1,0,n_m)
@@ -155,14 +155,14 @@ sim_model = function(seed, pars, nsteps) {
             
             # Compute the probability of establishment	
             
-            if(interaction == 0){
+            if(int == 0){
               
               estab_prob_sel = u_0neg + u_1neg*exp(-a_uneg * sum_I)
               
               estab_prob = SN * (estab_prob_neutral) + (1-SN) * (estab_prob_sel)
             }
             
-            if(interaction == 1 | interaction == 2){
+            if(int == 1 | int == 2){
               
               estab_prob_sel = (u_0pos + u_1pos*exp(-a_upos*sum_I))
               
@@ -197,26 +197,35 @@ sim_model = function(seed, pars, nsteps) {
       # Test for extinction
       
       
-      if(interaction == 0) {
+      if(int == 0) {
         in_I = colSums(L)
         ext_prob_sel = e_0neg + e_1neg*(1 - exp(-a_eneg*in_I)) 
         
         ext_prob = SN * (ext_prob_neutral) + (1-SN) * (ext_prob_sel)
       }
       
-      if(interaction == 1) {
+      if(int == 1) {
         in_I = colSums(L)
         ext_prob_sel = e_0pos + e_1pos*exp(-a_epos*in_I) 
         
         ext_prob = SN * (ext_prob_neutral) + (1-SN) * (ext_prob_sel)
       }
       
-      if(interaction == 2) {
+      if(int == 2) {
         in_I = colSums(L)
         out_I = rowSums(L)[(Sbasal+1):(Sbasal+Smax)] 	
-        ext_prob_sel = e_0neg + e_1neg*exp(-a_eneg*out_I) + e_0pos + e_1pos*exp(-a_epos*in_I)	
+        ext_prob_sel = e_0neg + e_1neg*exp(-a_eneg*out_I) + e_0pos + e_1pos*exp(-a_epos*in_I)
         
-        ext_prob = SN * (ext_prob_neutral) + (1-SN) * (ext_prob_sel)
+        if(in_I == 0){ # if 0 preys, extinct
+          
+          ext_prob = 0
+          
+        }else{
+          
+          ext_prob = SN * (ext_prob_neutral) + (1-SN) * (ext_prob_sel)
+        }
+        
+        
       }
       
       # Perform extinctions

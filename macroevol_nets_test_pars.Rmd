@@ -1,0 +1,392 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(ggplot2)
+library(ggpubr)
+library(reshape2)
+library(igraph)
+```
+
+
+Load functions
+
+```{r}
+source("simulation.R")
+```
+
+Parameters for plotting
+
+```{r}
+my.theme<-theme(axis.text=element_text(size=12),
+                axis.title = element_text(size = 14),
+                legend.position = "top",
+                legend.text=element_text(size=10),
+                legend.title = element_text(size=12),
+                plot.title = element_text(face="bold",size=14,margin=margin(0,0,20,0),hjust = 0.5),
+                axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
+                axis.title.x = element_text(margin = margin(t = 15, r = 0, b = 0, l = 0)))
+```
+
+
+
+
+```{r}
+
+pars = list()
+
+pars$av_r = 0.2 # range of the niche
+
+# PROBABILITY OF MUTATION
+
+pars$u_max = 0.15 # mutation probability (0.075, )
+pars$d = 0.5 # Decrease speed of the establishment probability
+pars$I_max = 40 # Maximal number of interactioning species
+
+pars$beta_n = 1 # parameter of the beta distribution 
+
+
+
+
+
+# STRENGTH OF NEUTRAL-DRIVEN EVOLUTION
+
+pars$SN = 0.1 # strength for neutral-driven evolution
+
+
+
+
+
+# PROBABILITY OF ESTABLISHMENT
+
+
+# strength of selection-driven selection is 1 - SN
+pars$estab_prob_neutral = 0.4 # neutral probability of establishment
+
+# Competition
+
+pars$u_0neg = 0.075 # Asymptotic establishment probability with infinite competitive interactions
+pars$u_1neg = 2 # Establishment probability with absence of competitive interactions
+pars$a_uneg = 0.075 # Shape of the exponential decay of the colonization - interaction relationship
+
+# Facilitation & Foodweb
+
+pars$u_0pos = 1  
+pars$u_1pos = -1 
+pars$a_upos = 0.45 
+
+
+
+
+# PROBABILITY OF EXTINCTION
+
+pars$ext_prob_neutral = 0.1 # neutral probability of extinction
+
+
+# Competition
+
+pars$e_0neg = 0.5 # Asymptotic extinction probability with infinite negative interactions
+pars$a_eneg = 0.025 # Shape of the exponential decay of the negative extinction - interaction relationship
+pars$e_1neg = 1  # Extinction probability with absence of interactions
+
+# Facilitation & Foodweb
+
+pars$e_0pos = 0.01 
+pars$e_1pos = 5.19 
+pars$a_epos = 1.2 
+
+
+
+pars$Sbasal = 25 # number of basal species
+pars$Smax = 1000 # Maximal number of species allowed
+
+
+
+
+```
+
+
+# set parameters simulation
+
+```{r}
+nsteps = 250 # Set the maximum timestep per simulation
+nsim = 3 # Set the number of simulations
+```
+
+
+
+
+### Test one interaction
+
+
+```{r}
+
+pars$int = 1 # 0 comp, 1 fac, 2 fw
+
+simulation <- sim_model(seed = runif(1), 
+                        pars, 
+                        nsteps = nsteps)
+
+res <- list(
+                      seed = seed,
+                      parameters = pars, 
+                      presence_matrix = simulation$pres, 
+                      traits_df = simulation$traits,
+                      parentage_matrix = simulation$anc,
+                      extinxction_matrix = simulation$extinct, 
+                      network_list = simulation$L_list
+                      # anc_dist_table = simulation$dist_anc, 
+                      # list_anc_dist = simulation$list_dist_anc
+      ) # Record results from the simulation
+
+```
+
+
+
+
+
+
+# Explore results
+
+
+```{r}
+
+# count number of timesteps where there are spp
+
+n_steps <- length(res$network_list)
+
+pres = res$presence_matrix
+
+
+
+```
+
+
+
+## N values with time
+
+```{r}
+
+
+
+res_spp = data.frame(matrix(ncol=2,
+                      nrow=0, 
+                      dimnames=list(NULL, c("step", "n values")))) #makes an empty dataframe
+
+res_mean = data.frame(matrix(ncol=2,
+                      nrow=0, 
+                      dimnames=list(NULL, c("step", "n values")))) 
+
+
+for (i in 1:nsteps) {
+  
+  pres_stepi <- which(pres[i,] == 1)
+  traits_stepi <- traits[pres_stepi, "n"]
+  
+  vec_step <- rep(i, times = length(traits_stepi))
+  
+  
+  
+  res.add <- data.frame("step" = vec_step, 
+                               "n values" = traits_stepi)
+  
+  res_spp <- rbind(res_spp, res.add)
+  
+
+  
+  res.add1 <- data.frame("step" = i, 
+                                "n values" = mean(traits_stepi))
+  
+  res_mean <- rbind(res_mean, res.add1)
+  
+  
+}
+
+plot_nichetime <- ggarrange(
+  
+  ggplot(res_spp, aes(x = step, y = n.values)) +
+    geom_point(alpha = 0.2)+
+    ggtitle("spp n values")+
+    theme_classic()+
+    my.theme+
+    ylim(0,1),
+  
+  
+  
+  ggplot(res_mean, aes(x = step, y = n.values)) +
+    geom_point(alpha = 0.2)+
+    ggtitle("mean n values")+
+    theme_classic()+
+    my.theme+
+    ylim(0,1),
+  
+  nrow = 2, 
+  ncol = 1
+  
+  
+)
+
+
+```
+
+
+## final degree distribution
+
+```{r}
+
+net_f <- res$network_list[[length(res$network_list)]]
+
+
+net_f <- net_f[26:1025,]
+
+colnames(net_f) <- seq(1:1000)
+
+rownames(net_f) <- seq(1:1000)
+
+pres_f <- res$presence_matrix[length(res$network_list),]
+names(pres_f) <- seq(1:1000)
+
+
+net_f <- net_f[names(which(pres_f == 1)), names(which(pres_f == 1))]
+
+graph <- graph_from_adjacency_matrix(adjmatrix = net_f,
+                                     mode = "directed")
+
+degree <- degree(graph, mode="all")
+
+deg.dist <- degree_distribution(graph, cumulative=T, mode="all")
+
+spp <- 1:length(deg.dist)
+
+df_degreeplot <- data.frame(deg.dist, spp)
+
+plot_degreedistr <- ggplot(df_degreeplot, aes(x = spp, y = deg.dist))+
+  geom_point() +
+  theme_classic()+
+  my.theme+
+  ylab("degree")+
+  xlab("spp")
+
+```
+
+
+
+## Speces richness with time
+
+
+
+```{r}
+
+plot_spp_richness <- function(steps, pres_mat, title) {
+  
+  timesteps <- 1:steps
+  
+  n_spp_time <- c()
+  
+  for (i in 1:nrow(pres_mat)) {
+  
+  n_spp_time[i] <- length(which(pres_mat[i,] == 1))
+  
+  }
+  
+  
+  df_spprich_time <- data.frame(timesteps,n_spp_time)
+  
+  p.spp <- ggplot(df_spprich_time, aes(x=timesteps, y = n_spp_time)) +
+  geom_line(color="black", linetype="twodash") +
+  theme_classic()+
+  my.theme+
+  xlab("timesteps")+
+  ylab("N species")+
+    ggtitle(title)
+  
+  return(p.spp)
+}
+
+
+plot_richnesstime <- plot_spp_richness(steps = nsteps, pres_mat = pres[1:nsteps,], title = "facilitation")
+
+
+```
+
+## Speciation and extinction events
+
+
+```{r}
+
+
+
+# Number of speciation and extinction events
+t0 = pres[1:(nsteps-1),]
+t1 = pres[2:nsteps,] 
+spec_mat = pres[1:(nsteps-1),]*0
+ext_mat = pres[1:(nsteps-1),]*0
+spec_mat[t1-t0==1] = 1 
+ext_mat[t1-t0==-1] = 1
+spec = apply(spec_mat ,1,sum)
+ext = apply(ext_mat, 1, sum)
+
+S = apply(pres,1,sum)[2:nsteps]
+
+time =  1:(nsteps-1)
+
+df_divrates <- data.frame(spec, ext, S, time)
+
+df_plot_divrates <- melt(df_divrates, id = c("time", "S"))
+
+
+plot_divrates <- ggplot(data=df_plot_divrates, aes(x=time, y=value/S, group=variable)) +
+  geom_line(aes(color = variable))+
+  scale_color_manual(values = c("blue4", "red2"))+
+  theme_classic()+
+  my.theme+
+  ylab("rate")+
+  labs(color = "")
+
+
+```
+
+
+
+## diversification-richness dependence
+
+```{r}
+
+plot_div_richness <- ggplot(data=df_plot_divrates, aes(x=S, y=value/S, group=variable)) +
+  geom_point(aes(color = variable), size = 2, alpha = 0.4)+
+  scale_color_manual(values = c("blue4", "red2"))+
+  theme_classic()+
+  my.theme+
+  ylab("rate")+
+  xlab("Species richness")+
+  labs(color = "")
+
+```
+
+
+
+```{r}
+arrange_plots <- ggarrange(
+  plot_nichetime + ggtitle("evolution niche values"),
+  plot_degreedistr + ggtitle("degree distr. final"),
+  plot_richnesstime + ggtitle("evolution richness"),
+  plot_divrates + ggtitle("evolution div. rates"),
+  plot_div_richness +ggtitle("div.rates & richness")
+)
+
+
+annotate_figure(arrange_plots, top = "facilitation")
+annotate_figure(arrange_plots, top = "competition")
+annotate_figure(arrange_plots, top = "foodweb")
+
+
+
+ggsave("fac_res_sim.png", height = 10, width = 13)
+ggsave("comp_res_sim.png", height = 10, width = 13)
+ggsave("fw_res_sim.png", height = 10, width = 13)
+
+```
+
+

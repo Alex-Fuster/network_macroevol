@@ -3,9 +3,13 @@ title: "R Notebook"
 output: html_notebook
 ---
 
+
+
 ```{r}
 library(ggplot2)
 library(ggpubr)
+library(reshape2)
+library(igraph)
 ```
 
 
@@ -31,10 +35,6 @@ my.theme<-theme(axis.text=element_text(size=12),
 
 
 
-
-
-[CURRENT VERSION] -> only selection-driven. No storage of distance_ancestry.
-
 ```{r}
 
 pars = list()
@@ -43,20 +43,25 @@ pars$av_r = 0.2 # range of the niche
 
 # PROBABILITY OF MUTATION
 
-pars$u_max = 0.15 # mutation probability
+pars$u_max = 0.15 # mutation probability (0.075, )
 pars$d = 0.5 # Decrease speed of the establishment probability
 pars$I_max = 40 # Maximal number of interactioning species
 
 pars$beta_n = 1 # parameter of the beta distribution 
 
 
+
+
+
 # STRENGTH OF NEUTRAL-DRIVEN EVOLUTION
 
-pars$SN = 0.5 # strength for neutral-driven evolution
+pars$SN = 0.1 # strength for neutral-driven evolution
+
+
+
 
 
 # PROBABILITY OF ESTABLISHMENT
-
 
 
 # strength of selection-driven selection is 1 - SN
@@ -73,6 +78,9 @@ pars$a_uneg = 0.075 # Shape of the exponential decay of the colonization - inter
 pars$u_0pos = 1  
 pars$u_1pos = -1 
 pars$a_upos = 0.45 
+
+
+
 
 # PROBABILITY OF EXTINCTION
 
@@ -125,7 +133,10 @@ seed_list <- NULL # Set an object to record seed that will be used to launch sim
 ```
 
 
-Run simulation
+### Run simulation for the three interactions
+
+
+
 
 ```{r}
 
@@ -241,137 +252,17 @@ for (int in 0:2) {
 
 
 
-# Explore results
-
-Competition
 
 ```{r}
+res <- readRDS("list_res_fac_2.rds")
+
 res <- readRDS("list_res_comp_2.rds")
 
+res <- readRDS("list_res_fw_2.rds")
 
-# count number of timesteps where there are spp
-
-list_simulation1 <- list_res
-
-n_steps <- length(list_simulation1$network_list)
-
-
+pres = res$presence_matrix
 
 ```
 
 
-
-
-## N values with time
-
-```{r}
-
-
-
-res_spp = data.frame(matrix(ncol=2,
-                      nrow=0, 
-                      dimnames=list(NULL, c("step", "n values")))) #makes an empty dataframe
-
-res_mean = data.frame(matrix(ncol=2,
-                      nrow=0, 
-                      dimnames=list(NULL, c("step", "n values")))) 
-
-
-for (i in 1:nsteps) {
-  
-  pres_stepi <- which(pres[i,] == 1)
-  traits_stepi <- traits[pres_stepi, "n"]
-  
-  vec_step <- rep(i, times = length(traits_stepi))
-  
-  
-  
-  res.add <- data.frame("step" = vec_step, 
-                               "n values" = traits_stepi)
-  
-  res_spp <- rbind(res_spp, res.add)
-  
-
-  
-  res.add1 <- data.frame("step" = i, 
-                                "n values" = mean(traits_stepi))
-  
-  res_mean <- rbind(res_mean, res.add1)
-  
-  
-}
-
-ggarrange(
-  
-  ggplot(res_spp, aes(x = step, y = n.values)) +
-    geom_point(alpha = 0.2)+
-    ggtitle("spp n values")+
-    theme_classic()+
-    my.theme+
-    ylim(0,1),
-  
-  
-  
-  ggplot(res_mean, aes(x = step, y = n.values)) +
-    geom_point(alpha = 0.2)+
-    ggtitle("mean n values")+
-    theme_classic()+
-    my.theme+
-    ylim(0,1),
-  
-  nrow = 1, 
-  ncol = 2
-  
-  
-)
-
-
-```
-
-
-
-## Speces richness with time
-
-
-
-
-
-```{r}
-# Plot mean trait value
-pres = res$pres
-traits = res$traits
-t=matrix(traits[,1],nr = nsteps, nc = ncol(pres),byrow=TRUE)
-mean_trait = apply(pres*t,1,sum,na.rm=T)/apply(pres,1,sum)
-plot(c(1:nsteps),mean_trait, type = "l")
-
-```
-
-
-
-```{r}
-# Plot diversification dynamics
-pres = res$pres
-traits = res$traits
-Stot = ncol(pres)
-S = apply(pres,1,sum)
-
-dev.new(width = 5, height = 4)
-par(mar = c(5,6,2,1))
-plot(c(1:nsteps),S,type = "l", xlab = "Time", ylab = "Species richness",cex.axis = 1.25, cex.lab = 1.5,lwd = 1.5)
-```
-
-```{r}
-##############################
-# Plot the trait distribution over time
-pres = res$pres
-traits = res$traits
-
-Time = c(1:nrow(pres))
-
-plot(Time[pres[,1]==1],rep(traits[1,1],sum(pres[,1])),xlim = c(1,nsteps),ylim = c(0,1), pch = 19, cex = 0.3, xlab = "Time", ylab = "Niche position")
-for(i in 1:Stot) points(Time[pres[,i]==1],rep(traits[i,1],sum(pres[,i])),cex = 0.3,pch = 19)
-
-```
-
-
-
+Check simulation:
