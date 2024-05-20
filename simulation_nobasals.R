@@ -42,38 +42,34 @@ rand_traits_mut = function(traits_anc, pars) {
 
 ########################################
 # Function to compute the interaction network from a set of traits
-get_L_mat = function(basal, pars, traits_mat) {
+get_L_mat = function(pars, traits_mat) {
   with(as.list(pars),{
-    L = matrix(0, nr = Smax+Sbasal, nc = Smax)
+    L = matrix(0, nr = Smax, nc = Smax)
     
     # Lower boundary
     low = traits_mat$o - traits_mat$r
-    low_mat = matrix(low, nr = Smax+Sbasal, nc = Smax, byrow = TRUE)
+    low_mat = matrix(low, nr = Smax, nc = Smax, byrow = TRUE)
     
     # Upper boundary
     high = traits_mat$o + traits_mat$r
-    high_mat = matrix(high, nr = Smax+Sbasal, nc = Smax, byrow = TRUE)	
+    high_mat = matrix(high, nr = Smax, nc = Smax, byrow = TRUE)	
     S = nrow(traits_mat)
     
     # Matrix of niche positions
     n_mat = matrix(traits_mat$n, nr = Smax, nc = Smax, byrow = FALSE)
     
-    # Add the basal species
-    n_basal = matrix(basal, nr = Sbasal, nc = Smax, byrow = FALSE)
-    n_mat = rbind(n_basal, n_mat)
-    
     # Test interactions
     L[n_mat > low_mat & n_mat < high_mat] = 1
-    if(Smax > 1) diag(L[(Sbasal+1):(Sbasal+Smax),]) = 0
+    if(Smax > 1) diag(L) = 0
     L
   })
 }
 
 ########################################
 # Function to compute the interactions of a given species
-get_L_vec = function(basal, pars, traits_mat, traits_mut) {
+get_L_vec = function(pars, traits_mat, traits_mut) {
   with(as.list(pars),{
-    L_vec = numeric(Smax+Sbasal)
+    L_vec = numeric(Smax)
     
     # Lower boundary
     low = traits_mut["o"] - traits_mut["r"]
@@ -82,7 +78,7 @@ get_L_vec = function(basal, pars, traits_mat, traits_mut) {
     high = traits_mut["o"] + traits_mut["r"]
     
     # Vector of niche positions
-    n_vec = c(basal, traits_mat$n)
+    n_vec = c(traits_mat$n)
     
     # Test interactions
     L_vec[n_vec > as.numeric(low) & n_vec < as.numeric(high)] = 1
@@ -97,9 +93,6 @@ sim_model = function(seed, pars, nsteps) {
     
     set.seed(seed)
     
-    # Draw the traits of the producers
-    #	basal = runif(pars$Sbasal, 0, 1)
-    basal = runif(pars$Sbasal, 0, 0.2)
     
     # Draw the first species traits
     traits_mat = matrix(nr = Smax, nc = 3)
@@ -148,10 +141,10 @@ sim_model = function(seed, pars, nsteps) {
             traits_mut = rand_traits_mut(traits_mat[i,], pars) 
             
             # Recompute the interactions 
-            I = get_L_vec(basal, pars, traits_mat, traits_mut)
+            I = get_L_vec(pars, traits_mat, traits_mut)
             
             # Compute the number of interactions among present species
-            sum_I = sum(I*c(rep(1,Sbasal),pres[step,]))	
+            sum_I = sum(I*pres[step,]) + Bspe
             
             # Compute the probability of establishment	
             
@@ -159,14 +152,14 @@ sim_model = function(seed, pars, nsteps) {
               
               estab_prob_sel = u_0neg + u_1neg*exp(-a_uneg * sum_I)
               
-              estab_prob = SN * (estab_prob_neutral[i]) + (1-SN) * (estab_prob_sel)
+              estab_prob = SN * (estab_prob_neutral) + (1-SN) * (estab_prob_sel)
             }
             
             if(int == 1 | int == 2){
               
               estab_prob_sel = (u_0pos + u_1pos*exp(-a_upos*sum_I))
               
-              estab_prob = SN * (estab_prob_neutral[i]) + (1-SN) * (estab_prob_sel)
+              estab_prob = SN * (estab_prob_neutral) + (1-SN) * (estab_prob_sel)
             }
             
             # Test if there is speciation
@@ -187,8 +180,8 @@ sim_model = function(seed, pars, nsteps) {
       pres_vec = pres[step,]
       cooc = matrix(pres_vec,nr=Smax,nc=Smax,byrow=TRUE)*
         matrix(pres_vec,nr=Smax,nc=Smax,byrow=FALSE)
-      L = get_L_mat(basal, pars, traits_mat)
-      L[c((Sbasal+1):(Sbasal+Smax)),]= L[c((Sbasal+1):(Sbasal+Smax)),]*cooc 	 		
+      L = get_L_mat(pars, traits_mat)
+      L= L*cooc 	 		
       L_list[[step]] = L
       
       
@@ -198,25 +191,32 @@ sim_model = function(seed, pars, nsteps) {
       
       
       if(int == 0) {
-        in_I = colSums(L)
+        in_I = colSums(L) + Bext*pres_vec
         ext_prob_sel = e_0neg + e_1neg*(1 - exp(-a_eneg*in_I)) 
         
         ext_prob = SN * (ext_prob_neutral) + (1-SN) * (ext_prob_sel)
       }
       
       if(int == 1) {
-        in_I = colSums(L)
+        in_I = colSums(L) + Bext*pres_vec
         ext_prob_sel = e_0pos + e_1pos*exp(-a_epos*in_I) 
         
         ext_prob = SN * (ext_prob_neutral) + (1-SN) * (ext_prob_sel)
       }
       
       if(int == 2) {
-        in_I = colSums(L)
-        out_I = rowSums(L)[(Sbasal+1):(Sbasal+Smax)] 	
+        in_I = colSums(L) + Bext*pres_vec
+        out_I = rowSums(L)	
         ext_prob_sel = e_0neg + e_1neg*exp(-a_eneg*out_I) + e_0pos + e_1pos*exp(-a_epos*in_I)
         
-        ext_prob = SN * (ext_prob_neutral) + (1-SN) * (ext_prob_sel)
+        if(in_I == 0){ # if 0 preys, extinct
+          
+          ext_prob = 0
+          
+        }else{
+          
+          ext_prob = SN * (ext_prob_neutral) + (1-SN) * (ext_prob_sel)
+        }
         
         
       }
@@ -228,8 +228,7 @@ sim_model = function(seed, pars, nsteps) {
     list(pres = pres, 
          traits = traits_mat, 
          anc = anc, 
-         L_list = L_list, 
-         basal = basal)
-  
-    })
+         L_list = L_list)
+    
+  })
 }

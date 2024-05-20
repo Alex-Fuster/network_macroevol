@@ -1,3 +1,4 @@
+
 ########################################
 # Function to generate a new set of traits for ancestors
 # Each species is characterized by a set of 3 traits: n, o and r
@@ -90,29 +91,31 @@ get_L_vec = function(basal, pars, traits_mat, traits_mut) {
   })
 }
 
+
+
 ########################################
+
 sim_model = function(seed, pars, nsteps) {
   
-  with(pars,{
+  with(pars, {
     
     set.seed(seed)
     
     # Draw the traits of the producers
-    #	basal = runif(pars$Sbasal, 0, 1)
     basal = runif(pars$Sbasal, 0, 0.2)
     
     # Draw the first species traits
     traits_mat = matrix(nr = Smax, nc = 3)
     traits_mat[1,] = rand_traits_anc(pars)
     traits_mat = as.data.frame(traits_mat)
-    names(traits_mat) = c("n","r","o")
+    names(traits_mat) = c("n", "r", "o")
     
     # Set the presence/absence matrix
     pres = matrix(0, nr = nsteps, nc = Smax)
-    pres[1,1] = 1
+    pres[1, 1] = 1
     
     # Set the ancestry object
-    anc = matrix(0,nr = Smax, nc = 2)
+    anc = matrix(0, nr = Smax, nc = 2)
     
     # Record the matrices 
     L_list = list()
@@ -123,8 +126,8 @@ sim_model = function(seed, pars, nsteps) {
     ##########################
     # MAIN LOOP
     for(step in 2:nsteps) {
-      ActualS = sum(pres[step-1,])
-      cat("Step = ", step-1," Total S = ", S," Actual S = ", ActualS,'\n')
+      ActualS = sum(pres[step - 1,])
+      cat("Step = ", step - 1, " Total S = ", S, " Actual S = ", ActualS, '\n')
       
       # Test for successful speciation probability
       for(i in 1:Smax) {
@@ -132,49 +135,43 @@ sim_model = function(seed, pars, nsteps) {
         if(S >= Smax) break
         
         # Speciation occurs if the species is present
-        if(pres[step-1,i] == 1) {
+        if(pres[step - 1, i] == 1) {
           
           # Species is maintained
           pres[step, i] = 1
           
           # Test if there is mutation
-          
           test_number = runif(1, 0, 1)
-          speciation_prob = u_max/(1 + exp(d * (ActualS - I_max)))
+          speciation_prob = u_max / (1 + exp(d * (ActualS - I_max)))
           
           if(test_number < speciation_prob) {
             
             # Pick new parameters
-            traits_mut = rand_traits_mut(traits_mat[i,], pars) 
+            traits_mut = rand_traits_mut(traits_mat[i, ], pars) 
             
             # Recompute the interactions 
             I = get_L_vec(basal, pars, traits_mat, traits_mut)
             
             # Compute the number of interactions among present species
-            sum_I = sum(I*c(rep(1,Sbasal),pres[step,]))	
+            sum_I = sum(I * c(rep(1, Sbasal), pres[step, ]))	
             
             # Compute the probability of establishment	
-            
-            if(int == 0){
-              
-              estab_prob_sel = u_0neg + u_1neg*exp(-a_uneg * sum_I)
-              
-              estab_prob = SN * (estab_prob_neutral[i]) + (1-SN) * (estab_prob_sel)
+            if(int == 0) {
+              estab_prob_sel = u_0neg + u_1neg * exp(-a_uneg * sum_I)
+              estab_prob = SN * (estab_prob_neutral[i]) + (1 - SN) * (estab_prob_sel)
             }
             
-            if(int == 1 | int == 2){
-              
-              estab_prob_sel = (u_0pos + u_1pos*exp(-a_upos*sum_I))
-              
-              estab_prob = SN * (estab_prob_neutral[i]) + (1-SN) * (estab_prob_sel)
+            if(int == 1 | int == 2) {
+              estab_prob_sel = u_0pos + u_1pos * exp(-a_upos * sum_I)
+              estab_prob = SN * (estab_prob_neutral[i]) + (1 - SN) * (estab_prob_sel)
             }
             
             # Test if there is speciation
             if(runif(1) < estab_prob) {
               S = S + 1
-              traits_mat[S,] = traits_mut 
-              pres[step,S] = 1
-              anc[S,] = c(step, i)
+              traits_mat[S, ] = traits_mut 
+              pres[step, S] = 1
+              anc[S, ] = c(step, i)
             }
           }
         }
@@ -184,45 +181,46 @@ sim_model = function(seed, pars, nsteps) {
       # Test for extinction
       
       # Compute the interaction matrix among present species
-      pres_vec = pres[step,]
-      cooc = matrix(pres_vec,nr=Smax,nc=Smax,byrow=TRUE)*
-        matrix(pres_vec,nr=Smax,nc=Smax,byrow=FALSE)
+      pres_vec = pres[step, ]
+      cooc = matrix(pres_vec, nr = Smax, nc = Smax, byrow = TRUE) * 
+        matrix(pres_vec, nr = Smax, nc = Smax, byrow = FALSE)
       L = get_L_mat(basal, pars, traits_mat)
-      L[c((Sbasal+1):(Sbasal+Smax)),]= L[c((Sbasal+1):(Sbasal+Smax)),]*cooc 	 		
+      L[c((Sbasal + 1):(Sbasal + Smax)), ] = L[c((Sbasal + 1):(Sbasal + Smax)), ] * cooc
       L_list[[step]] = L
       
-      
-      
+      # Compute competition index using matrix operations
+      shared_victims = L[(Sbasal + 1):(Sbasal + Smax), ] %*% t(L[(Sbasal + 1):(Sbasal + Smax), ])
+      diag(shared_victims) = 0  # Remove self-competition by setting diagonal to 0
+      competition_index = rowSums(shared_victims)
       
       # Test for extinction
-      
-      
       if(int == 0) {
         in_I = colSums(L)
-        ext_prob_sel = e_0neg + e_1neg*(1 - exp(-a_eneg*in_I)) 
-        
-        ext_prob = SN * (ext_prob_neutral) + (1-SN) * (ext_prob_sel)
+        ext_prob_sel = e_0neg + e_1neg * (1 - exp(-a_eneg * in_I)) 
+        ext_prob = SN * (ext_prob_neutral) + (1 - SN) * (ext_prob_sel)
       }
       
       if(int == 1) {
         in_I = colSums(L)
-        ext_prob_sel = e_0pos + e_1pos*exp(-a_epos*in_I) 
-        
-        ext_prob = SN * (ext_prob_neutral) + (1-SN) * (ext_prob_sel)
+        ext_prob_sel = e_0pos + e_1pos * exp(-a_epos * in_I) 
+        ext_prob = SN * (ext_prob_neutral) + (1 - SN) * (ext_prob_sel)
       }
       
       if(int == 2) {
         in_I = colSums(L)
-        out_I = rowSums(L)[(Sbasal+1):(Sbasal+Smax)] 	
-        ext_prob_sel = e_0neg + e_1neg*exp(-a_eneg*out_I) + e_0pos + e_1pos*exp(-a_epos*in_I)
+        out_I = rowSums(L)[(Sbasal + 1):(Sbasal + Smax)]
+        ext_prob_sel = e_0neg + e_1neg * exp(-a_eneg * out_I) + 
+          e_0pos + e_1pos * exp(-a_epos * in_I)
         
-        ext_prob = SN * (ext_prob_neutral) + (1-SN) * (ext_prob_sel)
+        # Adjust extinction probability with competition
+        competition_factor = 1 + competition_coefficient * competition_index
+        ext_prob_sel = ext_prob_sel * competition_factor
         
-        
+        ext_prob = SN * (ext_prob_neutral) + (1 - SN) * (ext_prob_sel)
       }
       
       # Perform extinctions
-      pres[step, pres[step-1,] & runif(Smax,0,1) < ext_prob] = 0
+      pres[step, pres[step - 1, ] & runif(Smax, 0, 1) < ext_prob] = 0
     } # End of main loop
     
     list(pres = pres, 
@@ -230,6 +228,7 @@ sim_model = function(seed, pars, nsteps) {
          anc = anc, 
          L_list = L_list, 
          basal = basal)
-  
-    })
+    
+  })
 }
+

@@ -14,7 +14,9 @@ library(igraph)
 Load functions
 
 ```{r}
-source("simulation.R")
+#source("simulation.R")
+source("functions_metrics_networks.R")
+#source("simulation_nobasals.R")
 ```
 
 Parameters for plotting
@@ -34,28 +36,40 @@ my.theme<-theme(axis.text=element_text(size=12),
 
 
 ```{r}
+source("simulation_with_competition_fw.R")
+
+```
+
+
+
+```{r}
 
 pars = list()
 
+pars$competition_coefficient = 0.01
+
+pars$Sbasal = 25 # number of basal species
+pars$Smax = 1000 # Maximal number of species allowed
+
+pars$Bspe = 4 # Basal species impact on the speciation probality
+pars$Bext = 4 # Basal species impact on extinction probability
+
 pars$av_r = 0.2 # range of the niche
+
 
 # PROBABILITY OF MUTATION
 
-pars$u_max = 0.15 # mutation probability (0.075, )
+pars$u_max = 0.25 #0.15 # mutation probability (0.075, )
 pars$d = 0.5 # Decrease speed of the establishment probability
-pars$I_max = 40 # Maximal number of interactioning species
+pars$I_max = 60 # Maximal number of interactioning species
 
-pars$beta_n = 1 # parameter of the beta distribution 
-
-
+pars$beta_n =  1 # parameter of the beta distribution 
 
 
 
 # STRENGTH OF NEUTRAL-DRIVEN EVOLUTION
 
-pars$SN = 0.1 # strength for neutral-driven evolution
-
-
+pars$SN = 0 # strength for neutral-driven evolution
 
 
 
@@ -63,13 +77,13 @@ pars$SN = 0.1 # strength for neutral-driven evolution
 
 
 # strength of selection-driven selection is 1 - SN
-pars$estab_prob_neutral = 0.4 # neutral probability of establishment
+pars$estab_prob_neutral = rep(0, pars$Smax) # neutral probability of establishment
 
 # Competition
 
-pars$u_0neg = 0.075 # Asymptotic establishment probability with infinite competitive interactions
-pars$u_1neg = 2 # Establishment probability with absence of competitive interactions
-pars$a_uneg = 0.075 # Shape of the exponential decay of the colonization - interaction relationship
+#pars$u_0neg = 0.075 # Asymptotic establishment probability with infinite competitive interactions
+#pars$u_1neg = 2 # Establishment probability with absence of competitive interactions
+#pars$a_uneg = 0.075 # Shape of the exponential decay of the colonization - interaction relationship
 
 # Facilitation & Foodweb
 
@@ -79,31 +93,26 @@ pars$a_upos = 0.45
 
 
 
-
 # PROBABILITY OF EXTINCTION
 
-pars$ext_prob_neutral = 0.1 # neutral probability of extinction
+pars$ext_prob_neutral = 0 # neutral probability of extinction
 
 
 # Competition
 
-pars$e_0neg = 0.5 # Asymptotic extinction probability with infinite negative interactions
+pars$e_0neg = 0.1 #0.15 # Asymptotic extinction probability with infinite negative interactions
 pars$a_eneg = 0.025 # Shape of the exponential decay of the negative extinction - interaction relationship
-pars$e_1neg = 1  # Extinction probability with absence of interactions
+pars$e_1neg = -pars$e_0neg  # Extinction probability with absence of interactions
 
 # Facilitation & Foodweb
 
-pars$e_0pos = 0.01 
+pars$e_0pos = 0.075 
 pars$e_1pos = 5.19 
 pars$a_epos = 1.2 
 
 
 
-pars$Sbasal = 25 # number of basal species
-pars$Smax = 1000 # Maximal number of species allowed
-
-
-
+#saveRDS(pars, "pars.rds")
 
 ```
 
@@ -112,7 +121,7 @@ pars$Smax = 1000 # Maximal number of species allowed
 
 ```{r}
 nsteps = 250 # Set the maximum timestep per simulation
-nsim = 3 # Set the number of simulations
+nsim = 2 # Set the number of simulations
 ```
 
 
@@ -123,14 +132,14 @@ nsim = 3 # Set the number of simulations
 
 ```{r}
 
-pars$int = 1 # 0 comp, 1 fac, 2 fw
+pars$int = 2 # 0 comp, 1 fac, 2 fw
 
-simulation <- sim_model(seed = runif(1), 
+simulation <- sim_model(seed = 100, 
                         pars, 
                         nsteps = nsteps)
 
 res <- list(
-                      seed = seed,
+                      #seed = seed,
                       parameters = pars, 
                       presence_matrix = simulation$pres, 
                       traits_df = simulation$traits,
@@ -140,6 +149,43 @@ res <- list(
                       # anc_dist_table = simulation$dist_anc, 
                       # list_anc_dist = simulation$list_dist_anc
       ) # Record results from the simulation
+
+
+
+
+
+list_results <- list()
+list_adj_matrix.f <- list()
+
+for (i in 1:nsim) {
+  
+  
+  seed <- set.seed(50)
+  
+  simulation <- sim_model(seed = runif(1), 
+                        pars, 
+                        nsteps = nsteps)
+  
+  res <- list(
+                      #seed = seed,
+                      parameters = pars, 
+                      presence_matrix = simulation$pres, 
+                      traits_df = simulation$traits,
+                      parentage_matrix = simulation$anc,
+                      extinxction_matrix = simulation$extinct, 
+                      network_list = simulation$L_list
+                      # anc_dist_table = simulation$dist_anc, 
+                      # list_anc_dist = simulation$list_dist_anc
+      ) # Record results from the simulation
+  
+  list_results[[i]] <- res
+  
+     
+  list_adj_matrix.f[[i]] <- get_adjancency_from_simulation.fw_single(list_networks = res$network_list,
+                                           nbasals = pars$Sbasal,
+                                           pres_mat = res$presence_matrix)
+  
+}
 
 ```
 
@@ -183,7 +229,7 @@ res_mean = data.frame(matrix(ncol=2,
 for (i in 1:nsteps) {
   
   pres_stepi <- which(pres[i,] == 1)
-  traits_stepi <- traits[pres_stepi, "n"]
+  traits_stepi <- res$traits_df[pres_stepi, "n"]
   
   vec_step <- rep(i, times = length(traits_stepi))
   
@@ -228,6 +274,7 @@ plot_nichetime <- ggarrange(
   
 )
 
+plot_nichetime
 
 ```
 
@@ -269,6 +316,8 @@ plot_degreedistr <- ggplot(df_degreeplot, aes(x = spp, y = deg.dist))+
   ylab("degree")+
   xlab("spp")
 
+plot_degreedistr
+
 ```
 
 
@@ -306,9 +355,9 @@ plot_spp_richness <- function(steps, pres_mat, title) {
 }
 
 
-plot_richnesstime <- plot_spp_richness(steps = nsteps, pres_mat = pres[1:nsteps,], title = "facilitation")
+plot_richnesstime <- plot_spp_richness(steps = n_steps, pres_mat = res$presence_matrix[1:n_steps,], title = "foodweb")
 
-
+plot_richnesstime
 ```
 
 ## Speciation and extinction events
@@ -316,21 +365,19 @@ plot_richnesstime <- plot_spp_richness(steps = nsteps, pres_mat = pres[1:nsteps,
 
 ```{r}
 
-
-
 # Number of speciation and extinction events
-t0 = pres[1:(nsteps-1),]
-t1 = pres[2:nsteps,] 
-spec_mat = pres[1:(nsteps-1),]*0
-ext_mat = pres[1:(nsteps-1),]*0
+t0 = pres[1:(n_steps-1),]
+t1 = pres[2:n_steps,] 
+spec_mat = pres[1:(n_steps-1),]*0
+ext_mat = pres[1:(n_steps-1),]*0
 spec_mat[t1-t0==1] = 1 
 ext_mat[t1-t0==-1] = 1
 spec = apply(spec_mat ,1,sum)
 ext = apply(ext_mat, 1, sum)
 
-S = apply(pres,1,sum)[2:nsteps]
+S = apply(pres,1,sum)[2:n_steps]
 
-time =  1:(nsteps-1)
+time =  1:(n_steps-1)
 
 df_divrates <- data.frame(spec, ext, S, time)
 
@@ -344,6 +391,8 @@ plot_divrates <- ggplot(data=df_plot_divrates, aes(x=time, y=value/S, group=vari
   my.theme+
   ylab("rate")+
   labs(color = "")
+
+plot_divrates
 
 
 ```
@@ -376,7 +425,104 @@ arrange_plots <- ggarrange(
   plot_div_richness +ggtitle("div.rates & richness")
 )
 
+arrange_plots
 
+
+
+```
+
+
+
+## Further checks for foodweb
+
+### Read table metrics from empirical foodwebs
+
+empirical networks data was obtained from the ECOWeB 1.1 database:
+https://digitalcommons.rockefeller.edu/cohen_joel_laboratory/1/
+
+```{r}
+
+
+net_metr_empirical <- readRDS("net_metrics_empirical.rds")
+
+net_metr_empirical$id <- NULL
+
+# eliminate one problematic foodweb:
+
+net_metr_empirical <- net_metr_empirical[-13,]
+
+# reshape dataframe:
+
+df_metrics_emp <- reshape_df_net.metrics(df_metrics = net_metr_empirical,
+                       interaction = "empirical")
+```
+
+
+
+```{r}
+
+list_adj_matrix.f <- list()
+
+  list_adj_matrix.f[[2]] <- get_adjancency_from_simulation.fw_single(list_networks = res$network_list,
+                                           nbasals = pars$Sbasal,
+                                           pres_mat = res$presence_matrix)
+```
+
+
+
+```{r}
+
+
+
+net_metr_sim <- get_network_measures_from_adjacency(list_adj_matrix = list_adj_matrix.f)
+
+df_metrics_fw <- reshape_df_net.metrics(df_metrics = net_metr_sim,
+                       interaction = "foodweb")
+
+df_metrics <- merge(df_metrics_fw,
+                    df_metrics_emp,
+                    by = "metric")
+
+
+# plot the results
+
+p_S <- plot_metric_foodweb(df = df_metrics, metric = "S", y_axis = "N species")
+p_link.dens <- plot_metric_foodweb(df = df_metrics, metric = "Link_density", y_axis = "L/S")
+p_C <- plot_metric_foodweb(df = df_metrics, metric = "C", y_axis = "Connectance")
+p_top <- plot_metric_foodweb(df = df_metrics, metric = "perc_tops", y_axis = "% top species")
+p_int <- plot_metric_foodweb(df = df_metrics, metric = "perc_int", y_axis = "% intermediate species")
+p_basal <- plot_metric_foodweb(df = df_metrics, metric = "perc_basals", y_axis = "% basal species")
+p_cannibals <- plot_metric_foodweb(df = df_metrics, metric = "perc_cannibals", y_axis = "% cannibal species")
+p_omnivory <- plot_metric_foodweb(df = df_metrics, metric = "omnivory", y_axis = "omnivory")
+p_sd_gen <- plot_metric_foodweb(df = df_metrics, metric = "sd_gen", y_axis = "SD generality")
+p_sd_vul <- plot_metric_foodweb(df = df_metrics, metric = "sd_vul", y_axis = "SD vulnerability")
+
+plot_metrics_comparison_sim_emp <- ggarrange(
+  p_S,
+  p_link.dens,
+  p_C,
+  p_top,
+  p_int,
+  p_basal,
+  p_cannibals,
+  p_omnivory,
+  p_sd_gen,
+  p_sd_vul,
+  
+  nrow = 5,
+  ncol = 2
+  
+)
+
+plot_metrics_comparison_sim_emp
+```
+
+
+
+
+
+
+```{r}
 annotate_figure(arrange_plots, top = "facilitation")
 annotate_figure(arrange_plots, top = "competition")
 annotate_figure(arrange_plots, top = "foodweb")
@@ -386,7 +532,5 @@ annotate_figure(arrange_plots, top = "foodweb")
 ggsave("fac_res_sim.png", height = 10, width = 13)
 ggsave("comp_res_sim.png", height = 10, width = 13)
 ggsave("fw_res_sim.png", height = 10, width = 13)
-
 ```
-
 
