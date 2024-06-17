@@ -1,6 +1,5 @@
 ---
 title: "Obtain phylogenetic and interaction distances and compute phylogenetic signal - 1 simulation only"
-output: html_notebook
 description: this scripts computes phylogenetic signal with time for only one simulation, displaying all the steps separatelly
 ---
 
@@ -51,7 +50,7 @@ FACILITATION
 
 ```{r}
 
-list_res <- readRDS("../Data/selection_evolution/facilitation/list_res_pos_2.rds")
+list_res <- readRDS("../Data/selection_evolution/facilitation/test/list_res_pos_2.rds")
 
 
 # count number of timesteps where there are spp
@@ -723,18 +722,6 @@ if(length(which(vec_problems == "P") > 0)){
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 ## compute Principal Coordinate Analyses
 
 
@@ -959,59 +946,7 @@ df_signal_time
 
 # Results
 
-
-### Plot phylogenetic signal through time
-
-```{r}
-
-
-my.theme<-theme(axis.text=element_text(size=12),
-                axis.title = element_text(size = 14),
-                legend.position = "top",
-                legend.text=element_text(size=10),
-                legend.title = element_text(size=12),
-                plot.title = element_text(face="bold",size=14,margin=margin(0,0,20,0),hjust = 0.5),
-                axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
-                axis.title.x = element_text(margin = margin(t = 15, r = 0, b = 0, l = 0)))
-
-
-p_pred <- ggplot(df_signal_time, aes(x=timesteps, y=protest_corr_pred)) +
-       geom_line(color="black", linetype="twodash")+
-  #geom_point(aes(fill = sign_mean, color=sign_mean), size=2, alpha = 0.7) +
-  theme_bw()+
-    my.theme+
-    scale_colour_manual(values = c("black", "red"))+
-    ggtitle("as predators")+
-xlab("timesteps")+
-  ylab("Phylogenetic signal")
-
-
-p_prey <- ggplot(df_signal_time, aes(x=timesteps, y=protest_corr_prey)) +
-       geom_line(color="black", linetype="twodash")+
-  #geom_point(aes(fill = sign_mean, color=sign_mean), size=2, alpha = 0.7) +
-  theme_bw()+
-    my.theme+
-    scale_colour_manual(values = c("black", "red"))+
-    ggtitle("as preys")+
-xlab("timesteps")+
-  ylab("Phylogenetic signal")
-
-
-
-
-p_mean <- ggplot(df_signal_time, aes(x=timesteps, y=protest_corr_mean)) +
-       geom_line(color="black", linetype="twodash")+
-  #geom_point(aes(fill = sign_mean, color=sign_mean), size=2, alpha = 0.7) +
-  theme_bw()+
-    my.theme+
-    scale_colour_manual(values = c("black", "red"))+
-    ggtitle("foodweb")+
-xlab("timesteps")+
-  ylab("Phylogenetic signal")
-
-
-```
-
+##Add S as column in df_signal_time based on timesteps
 
 
 ### Plot species richness through time
@@ -1044,6 +979,86 @@ p.spp <- ggplot(df_signal_time, aes(x=timesteps, y = nspp)) +
 p.spp
 
 ```
+
+```{r}
+
+```
+
+
+
+### Plot phylogenetic signal through time
+
+```{r}
+
+
+my.theme<-theme(axis.text=element_text(size=12),
+                axis.title = element_text(size = 14),
+                legend.position = "top",
+                legend.text=element_text(size=10),
+                legend.title = element_text(size=12),
+                plot.title = element_text(face="bold",size=14,margin=margin(0,0,20,0),hjust = 0.5),
+                axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
+                axis.title.x = element_text(margin = margin(t = 15, r = 0, b = 0, l = 0)))
+
+
+p_pred <- ggplot(df_signal_time, aes(x=nspp, y=protest_corr_pred)) +
+       geom_line(color="black", linetype="twodash")+
+  #geom_point(aes(fill = sign_mean, color=sign_mean), size=2, alpha = 0.7) +
+  theme_bw()+
+    my.theme+
+    scale_colour_manual(values = c("black", "red"))+
+    ggtitle("as predators")+
+xlab("timesteps")+
+  ylab("Phylogenetic signal")+
+  ylim(0,1)
+
+
+
+
+p_prey <- ggplot(df_signal_time, aes(x=nspp, y=protest_corr_prey)) +
+       geom_line(color="black", linetype="twodash")+
+  #geom_point(aes(fill = sign_mean, color=sign_mean), size=2, alpha = 0.7) +
+  theme_bw()+
+    my.theme+
+    scale_colour_manual(values = c("black", "red"))+
+    ggtitle("as preys")+
+xlab("timesteps")+
+  ylab("Phylogenetic signal")
+
+
+
+
+p_mean <- ggplot(df_signal_time, aes(x=nspp, y=protest_corr_mean)) +
+       geom_line(color="black", linetype="twodash")+
+  #geom_point(aes(fill = sign_mean, color=sign_mean), size=2, alpha = 0.7) +
+  theme_bw()+
+    my.theme+
+    scale_colour_manual(values = c("black", "red"))+
+    ggtitle("foodweb")+
+xlab("timesteps")+
+  ylab("Phylogenetic signal")
+
+
+
+
+```
+
+
+~S
+
+```{r}
+ggplot(df_signal_time, aes(x=nspp, y=protest_corr_mean)) +
+  geom_smooth(method = "gam", color = "black", linetype = "twodash", se = FALSE) +
+  theme_bw() +
+  my.theme +
+  scale_colour_manual(values = c("black", "red")) +
+  ggtitle("as predators") +
+  xlab("timesteps") +
+  ylab("Phylogenetic signal")+
+  ylim(0,1)
+```
+
+
 
 
 

@@ -35,8 +35,6 @@ my.theme<-theme(axis.text=element_text(size=12),
 
 
 ```{r}
-#source("simulation_with_competition_fw.R")
-
 source("../functions/functions_simulation_fw.R")
 ```
 
@@ -53,7 +51,7 @@ pars = list()
 
 
 
-pars$competition_coefficient = 0.03
+pars$competition_coefficient = 0.025
 
 pars$Sbasal = 25 # number of basal species
 pars$Smax = 1000 # Maximal number of species allowed
@@ -120,7 +118,7 @@ pars$a_epos = 1.2
 
 
 
-saveRDS(pars, "pars_fw_12june.rds")
+#saveRDS(pars, "pars_fw_12june.rds")
 
 #pars <- readRDS("pars_work_12june.rds")
 
@@ -392,23 +390,28 @@ time =  1:(n_steps-1)
 div_rate <- (spec - ext) / S
 
 # Create data frames for plotting
-df_divrates <- data.frame(time, S, spec, ext, div_rate)
-df_plot_divrates <- melt(df_divrates, id.vars = c("time", "S"))
+df_rates<- data.frame(time, S, spec, ext)
+df_plot_rates <- melt(df_rates, id.vars = c("time", "S"))
 
 # Plot speciation and extinction rates
-plot_divrates <- ggplot(data = df_plot_divrates[df_plot_divrates$variable %in% c("spec", "ext"),], aes(x = time, y = value / S, group = variable)) +
+plot_divrates <- ggplot(data = df_plot_rates[df_plot_rates$variable %in% c("spec", "ext"),], aes(x = time, y = value / S, group = variable)) +
   geom_line(aes(color = variable)) +
   scale_color_manual(values = c("blue4", "red2")) +
   theme_classic() +
   ylab("Rate") +
   labs(color = "")
 
-plot_divrates_smoothed <- ggplot(data = df_plot_divrates[df_plot_divrates$variable %in% c("spec", "ext"),], aes(x = time, y = value / S, group = variable)) +
+plot_divrates_smoothed <- ggplot(data = df_plot_rates[df_plot_rates$variable %in% c("spec", "ext"),], aes(x = time, y = value / S, group = variable)) +
   geom_smooth(aes(color = variable), method = "loess") +
   scale_color_manual(values = c("blue4", "red2")) +
   theme_classic() +
   ylab("Rate") +
   labs(color = "")
+
+
+# Create data frames for plotting
+df_divrates <- data.frame(time, S, spec, ext, div_rate)
+df_plot_divrates <- melt(df_divrates, id.vars = c("time", "S"))
 
 # Plot diversification rate
 plot_divrate <- ggplot(data = df_divrates, aes(x = time, y = div_rate)) +
@@ -430,7 +433,7 @@ print(plot_divrate)
 
 ```{r}
 
-plot_div_richness <- ggplot(data=df_plot_divrates, aes(x=S, y=value/S, group=variable)) +
+plot_div_richness <- ggplot(data=df_plot_rates, aes(x=S, y=value/S, group=variable)) +
   geom_point(aes(color = variable), size = 2, alpha = 0.4)+
   scale_color_manual(values = c("blue4", "red2"))+
   theme_classic()+

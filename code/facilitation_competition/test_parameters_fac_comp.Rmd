@@ -104,11 +104,49 @@ pars$estab_prob_neutral = 0
 pars$ext_prob_neutral = 0 # neutral probability of extinction
 
 
-saveRDS(pars, "pars_faccomp_12june.rds")
+#saveRDS(pars, "pars_faccomp_12june.rds")
 
 #pars <- readRDS("pars_work_12june.rds")
 
 ```
+
+
+
+
+tests
+
+```{r}
+# Extinction probability, negative interactions communities
+#pars$a_eneg <- 0.05 # Increased sensitivity
+pars$e_0neg <- 0.65  # Increased baseline extinction probability
+
+# Extinction probability, positive interactions communities
+#pars$a_epos <- 2.4  # Increased sensitivity
+pars$e_0pos <- 0.06 # Decreased baseline extinction probability
+
+# Establishment probability, negative interactions communities
+#pars$a_uneg <- 0.15 # Increased sensitivity
+
+# Establishment probability, positive interactions communities
+pars$a_u <- 1 # Increased sensitivity
+
+```
+
+
+```{r}
+# Extinction probability parameters
+pars$e_0pos <- 0.1  # Reduce the asymptotic extinction probability with infinite positive interactions
+pars$e_1pos <- 6  # Slightly decrease the extinction probability in the absence of positive interactions
+pars$a_epos <- 0.8  # Decrease the rate at which extinction probability decreases with more positive interactions
+
+# Establishment probability parameters
+pars$u_0 <- 1.0  # Increase the asymptotic establishment probability with infinite positive interactions
+pars$u_1 <- -0.9 #-0.9  # Increase the establishment probability in the absence of positive interactions
+pars$a_u <- 1.0  # Keep the rate at which establishment probability decreases with more positive interactions
+
+
+```
+
 
 
 as Mathilde
@@ -312,6 +350,7 @@ plot_nichetime <- ggarrange(
   
 )
 
+
 plot_nichetime
 
 ```
@@ -401,7 +440,7 @@ plot_richnesstime
 ```
 
 
-## Speciation and extinction events
+## Speciation and extinction events - time
 
 
 ```{r}
@@ -433,7 +472,14 @@ plot_divrates <- ggplot(data=df_plot_divrates, aes(x=time, y=value/S, group=vari
   ylab("rate")+
   labs(color = "")
 
- ggplot(data=df_plot_divrates, aes(x=time, y=value/S, group=variable)) +
+```
+
+
+
+## Speciation and extinction events - S
+
+```{r}
+ ggplot(data=df_plot_divrates, aes(x=S, y=value/S, group=variable)) +
   geom_smooth(aes(color = variable), method = "loess") +
   scale_color_manual(values = c("blue4", "red2")) +
   theme_classic() +
@@ -441,10 +487,13 @@ plot_divrates <- ggplot(data=df_plot_divrates, aes(x=time, y=value/S, group=vari
   ylab("rate") +
   labs(color = "")
 
-plot_divrates
-
-
 ```
+
+
+
+
+
+
 ## diversification-richness dependence
 
 ```{r}
